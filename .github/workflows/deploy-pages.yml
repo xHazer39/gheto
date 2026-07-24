@@ -26,11 +26,22 @@ jobs:
           base64 --decode build_site.sh.gz.b64 | gzip --decompress > build_site.sh
           chmod +x build_site.sh
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
       - name: Install yt-dlp
-        run: python3 -m pip install --user --upgrade yt-dlp
+        run: python -m pip install --upgrade yt-dlp
 
       - name: Generate site and direct YouTube links
         run: bash ./build_site.sh "$GITHUB_WORKSPACE/public"
+
+      - name: Validate generated site
+        run: |
+          test -s public/index.html
+          grep -q "The Legacy of the Omniverse" public/index.html
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -38,11 +49,14 @@ jobs:
           enablement: true
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: public
 
   deploy:
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
