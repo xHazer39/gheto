@@ -34,13 +34,22 @@ jobs:
       - name: Install yt-dlp
         run: python -m pip install --upgrade yt-dlp
 
-      - name: Generate site and direct YouTube links
+      - name: Generate Omniverse site and direct YouTube links
         run: bash ./build_site.sh "$GITHUB_WORKSPACE/public"
 
-      - name: Validate generated site
+      - name: Add Kurose networking study app
+        run: |
+          mkdir -p public/reti
+          base64 --decode reti-kurose-grind.html.gz.b64 | gzip --decompress > public/reti/index.html
+
+      - name: Validate generated sites
         run: |
           test -s public/index.html
           grep -q "The Legacy of the Omniverse" public/index.html
+          test -s public/reti/index.html
+          grep -q "Kurose Grind" public/reti/index.html
+          test "$(grep -o 'class="task video-task"' public/reti/index.html | wc -l)" -eq 40
+          test "$(grep -o 'class="task reading-task"' public/reti/index.html | wc -l)" -eq 8
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
