@@ -31,6 +31,11 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Install yt-dlp
         run: python -m pip install --upgrade yt-dlp
 
@@ -42,10 +47,15 @@ jobs:
           mkdir -p public/reti
           base64 --decode reti-kurose-grind.html.gz.b64 | gzip --decompress > public/reti/index.html
 
-      - name: Add Meal Builder beta
+      - name: Restore and test Meal Builder exact engine
         run: |
           mkdir -p public/meal
           base64 --decode meal-builder.html.gz.b64 | gzip --decompress > public/meal/index.html
+          base64 --decode meal-builder-core.js.gz.b64 | gzip --decompress > public/meal/core.js
+          base64 --decode meal-builder-worker.js.gz.b64 | gzip --decompress > public/meal/worker.js
+          base64 --decode meal-builder-tests.js.gz.b64 | gzip --decompress > meal-builder-tests.js
+          cp public/meal/core.js meal-builder-core.js
+          node meal-builder-tests.js
 
       - name: Validate generated sites
         run: |
@@ -56,8 +66,10 @@ jobs:
           test "$(grep -o 'class="task video-task"' public/reti/index.html | wc -l)" -eq 40
           test "$(grep -o 'class="task reading-task"' public/reti/index.html | wc -l)" -eq 8
           test -s public/meal/index.html
-          grep -q "Meal Builder" public/meal/index.html
-          grep -q "Dal frigo" public/meal/index.html
+          test -s public/meal/core.js
+          test -s public/meal/worker.js
+          grep -q "Exact Engine 1.0" public/meal/index.html
+          grep -q "MealBuilderCore.solve" public/meal/worker.js
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
