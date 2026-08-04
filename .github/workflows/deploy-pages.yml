@@ -42,6 +42,11 @@ jobs:
           mkdir -p public/reti
           base64 --decode reti-kurose-grind.html.gz.b64 | gzip --decompress > public/reti/index.html
 
+      - name: Add Meal Builder beta
+        run: |
+          mkdir -p public/meal
+          base64 --decode meal-builder.html.gz.b64 | gzip --decompress > public/meal/index.html
+
       - name: Validate generated sites
         run: |
           test -s public/index.html
@@ -50,6 +55,9 @@ jobs:
           grep -q "Kurose Grind" public/reti/index.html
           test "$(grep -o 'class="task video-task"' public/reti/index.html | wc -l)" -eq 40
           test "$(grep -o 'class="task reading-task"' public/reti/index.html | wc -l)" -eq 8
+          test -s public/meal/index.html
+          grep -q "Meal Builder" public/meal/index.html
+          grep -q "Dal frigo" public/meal/index.html
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
