@@ -31,11 +31,6 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
       - name: Install yt-dlp
         run: python -m pip install --upgrade yt-dlp
 
@@ -47,81 +42,28 @@ jobs:
           mkdir -p public/reti
           base64 --decode reti-kurose-grind.html.gz.b64 | gzip --decompress > public/reti/index.html
 
-      - name: Restore and test Meal Builder exact engine
+      - name: Add standalone Meal Builder
         run: |
           set -euo pipefail
           mkdir -p public/meal
-
-          cat > /tmp/decode_gzip_b64.py <<'PY'
+          python - <<'PY'
           import base64
           import gzip
           import pathlib
           import re
-          import sys
 
-          label, destination, *sources = sys.argv[1:]
-          if not sources:
-              raise SystemExit(f"{label}: nessun file sorgente")
-
-          parts = []
-          for source in sources:
-              path = pathlib.Path(source)
-              if not path.is_file():
-                  raise SystemExit(f"{label}: file mancante: {source}")
-              parts.append(path.read_text(encoding="utf-8"))
-
-          original = "".join(parts)
-          cleaned = re.sub(r"[^A-Za-z0-9+/=]", "", original)
-          removed = len(original) - len(cleaned)
-          cleaned += "=" * (-len(cleaned) % 4)
-
-          try:
-              compressed = base64.b64decode(cleaned, validate=True)
-          except Exception as exc:
-              raise SystemExit(
-                  f"{label}: base64 non valida dopo pulizia; "
-                  f"caratteri={len(cleaned)}, rimossi={removed}: {exc}"
-              ) from exc
-
-          try:
-              decoded = gzip.decompress(compressed)
-          except Exception as exc:
-              raise SystemExit(
-                  f"{label}: base64 decodificata ma gzip corrotto o troncato; "
-                  f"byte compressi={len(compressed)}, rimossi={removed}: {exc}"
-              ) from exc
-
-          pathlib.Path(destination).write_bytes(decoded)
-          print(
-              f"{label}: OK — {len(sources)} sorgenti, "
-              f"{len(compressed)} byte gzip, {len(decoded)} byte estratti, "
-              f"{removed} caratteri ignorati"
-          )
+          source = pathlib.Path("meal-builder.html.gz.b64")
+          encoded = re.sub(r"[^A-Za-z0-9+/=]", "", source.read_text(encoding="utf-8"))
+          encoded += "=" * (-len(encoded) % 4)
+          compressed = base64.b64decode(encoded, validate=True)
+          html = gzip.decompress(compressed)
+          pathlib.Path("public/meal/index.html").write_bytes(html)
+          print(f"Meal Builder standalone: OK — {len(compressed)} byte gzip, {len(html)} byte HTML")
           PY
-
-          python /tmp/decode_gzip_b64.py \
-            "Meal Builder HTML" public/meal/index.html \
-            meal-builder.html.gz.b64
-
-          python /tmp/decode_gzip_b64.py \
-            "Meal Builder core" public/meal/core.js \
-            $(find meal-builder-chunks -maxdepth 1 -type f -name 'core.*.b64part' | sort)
-
-          python /tmp/decode_gzip_b64.py \
-            "Meal Builder worker" public/meal/worker.js \
-            meal-builder-worker.js.gz.b64
-
-          python /tmp/decode_gzip_b64.py \
-            "Meal Builder tests" meal-builder-tests.js \
-            $(find meal-builder-chunks -maxdepth 1 -type f -name 'tests.*.b64part' | sort)
-
-          cp public/meal/core.js meal-builder-core.js
-          node --check public/meal/core.js
-          node --check public/meal/worker.js
-          node meal-builder-tests.js
 
       - name: Validate generated sites
         run: |
+          set -euo pipefail
           test -s public/index.html
           grep -q "The Legacy of the Omniverse" public/index.html
           test -s public/reti/index.html
@@ -129,11 +71,11 @@ jobs:
           test "$(grep -o 'class="task video-task"' public/reti/index.html | wc -l)" -eq 40
           test "$(grep -o 'class="task reading-task"' public/reti/index.html | wc -l)" -eq 8
           test -s public/meal/index.html
-          test -s public/meal/core.js
-          test -s public/meal/worker.js
-          grep -q "Exact Engine 1.2" public/meal/index.html
+          grep -q "Exact Engine 1.3 · standalone" public/meal/index.html
           grep -q "Piano giornaliero" public/meal/index.html
-          grep -q "MealBuilderCore.solve" public/meal/worker.js
+          grep -q "MealBuilderCore" public/meal/index.html
+          ! grep -q 'src="./core.js"' public/meal/index.html
+          ! grep -q "new Worker" public/meal/index.html
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
