@@ -1,0 +1,2 @@
+Trigger del workflow GitHub Pages dopo l'introduzione del decoder Python robusto.
+Commit precedente del workflow: 904993155b495588e5429d4f4368e8b877098f7c
