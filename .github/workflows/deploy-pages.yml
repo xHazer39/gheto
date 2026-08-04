@@ -51,10 +51,70 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p public/meal
-          base64 --decode meal-builder.html.gz.b64 | gzip --decompress > public/meal/index.html
-          cat meal-builder-chunks/core.*.b64part | base64 --decode | gzip --decompress > public/meal/core.js
-          base64 --decode meal-builder-worker.js.gz.b64 | gzip --decompress > public/meal/worker.js
-          cat meal-builder-chunks/tests.*.b64part | base64 --decode | gzip --decompress > meal-builder-tests.js
+
+          cat > /tmp/decode_gzip_b64.py <<'PY'
+          import base64
+          import gzip
+          import pathlib
+          import re
+          import sys
+
+          label, destination, *sources = sys.argv[1:]
+          if not sources:
+              raise SystemExit(f"{label}: nessun file sorgente")
+
+          parts = []
+          for source in sources:
+              path = pathlib.Path(source)
+              if not path.is_file():
+                  raise SystemExit(f"{label}: file mancante: {source}")
+              parts.append(path.read_text(encoding="utf-8"))
+
+          original = "".join(parts)
+          cleaned = re.sub(r"[^A-Za-z0-9+/=]", "", original)
+          removed = len(original) - len(cleaned)
+          cleaned += "=" * (-len(cleaned) % 4)
+
+          try:
+              compressed = base64.b64decode(cleaned, validate=True)
+          except Exception as exc:
+              raise SystemExit(
+                  f"{label}: base64 non valida dopo pulizia; "
+                  f"caratteri={len(cleaned)}, rimossi={removed}: {exc}"
+              ) from exc
+
+          try:
+              decoded = gzip.decompress(compressed)
+          except Exception as exc:
+              raise SystemExit(
+                  f"{label}: base64 decodificata ma gzip corrotto o troncato; "
+                  f"byte compressi={len(compressed)}, rimossi={removed}: {exc}"
+              ) from exc
+
+          pathlib.Path(destination).write_bytes(decoded)
+          print(
+              f"{label}: OK — {len(sources)} sorgenti, "
+              f"{len(compressed)} byte gzip, {len(decoded)} byte estratti, "
+              f"{removed} caratteri ignorati"
+          )
+          PY
+
+          python /tmp/decode_gzip_b64.py \
+            "Meal Builder HTML" public/meal/index.html \
+            meal-builder.html.gz.b64
+
+          python /tmp/decode_gzip_b64.py \
+            "Meal Builder core" public/meal/core.js \
+            $(find meal-builder-chunks -maxdepth 1 -type f -name 'core.*.b64part' | sort)
+
+          python /tmp/decode_gzip_b64.py \
+            "Meal Builder worker" public/meal/worker.js \
+            meal-builder-worker.js.gz.b64
+
+          python /tmp/decode_gzip_b64.py \
+            "Meal Builder tests" meal-builder-tests.js \
+            $(find meal-builder-chunks -maxdepth 1 -type f -name 'tests.*.b64part' | sort)
+
           cp public/meal/core.js meal-builder-core.js
           node --check public/meal/core.js
           node --check public/meal/worker.js
