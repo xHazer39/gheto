@@ -63,12 +63,15 @@ jobs:
           grep -q "The Legacy of the Omniverse" public/index.html
           test -s public/reti/index.html
           grep -q "Kurose Grind" public/reti/index.html
-          test "$(grep -o 'class="task video-task"' public/reti/index.html | wc -l)" -eq 40
-          test "$(grep -o 'class="task reading-task"' public/reti/index.html | wc -l)" -eq 8
+          test "$(grep -o 'class=\"task video-task\"' public/reti/index.html | wc -l)" -eq 40
+          test "$(grep -o 'class=\"task reading-task\"' public/reti/index.html | wc -l)" -eq 8
           test -s public/meal/index.html
           test -s public/meal/core.js
           test -s public/meal/worker.js
-          grep -q "Exact Engine 1.0" public/meal/index.html
+          grep -q "Exact Engine 1.2" public/meal/index.html
+          grep -q "Giorno ON 1" public/meal/index.html
+          grep -q "Giorno OFF 2" public/meal/index.html
+          grep -q "Residex" public/meal/index.html
           grep -q "MealBuilderCore.solve" public/meal/worker.js
 
       - name: Configure Pages
