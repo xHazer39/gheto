@@ -1,0 +1,1 @@
+Trigger dedicato per verificare il deploy Meal Builder dopo la ricostruzione con chunk e checksum.
