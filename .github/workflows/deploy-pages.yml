@@ -46,20 +46,16 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p public/meal
-          python - <<'PY'
-          import base64
-          import gzip
-          import pathlib
-          import re
 
-          source = pathlib.Path("meal-builder.html.gz.b64")
-          encoded = re.sub(r"[^A-Za-z0-9+/=]", "", source.read_text(encoding="utf-8"))
-          encoded += "=" * (-len(encoded) % 4)
-          compressed = base64.b64decode(encoded, validate=True)
-          html = gzip.decompress(compressed)
-          pathlib.Path("public/meal/index.html").write_bytes(html)
-          print(f"Meal Builder standalone: OK — {len(compressed)} byte gzip, {len(html)} byte HTML")
-          PY
+          cat meal-standalone-v13/meal.*.b64part > /tmp/meal-builder.b64
+          echo "5ae84366ed8f05233788bc9e1b39522695e0fae688eabb662d6418d41e37e80e  /tmp/meal-builder.b64" | sha256sum --check --strict
+
+          base64 --decode /tmp/meal-builder.b64 > /tmp/meal-builder.gz
+          echo "be8655c5bdabe4ca0cb08a444f1685343515a612deda24096199793723e5ccd0  /tmp/meal-builder.gz" | sha256sum --check --strict
+
+          gzip -t /tmp/meal-builder.gz
+          gzip --decompress --stdout /tmp/meal-builder.gz > public/meal/index.html
+          echo "Meal Builder standalone: OK — $(stat -c%s /tmp/meal-builder.gz) byte gzip, $(stat -c%s public/meal/index.html) byte HTML"
 
       - name: Validate generated sites
         run: |
