@@ -65,11 +65,16 @@ jobs:
           test -s public/reti/index.html
           grep -q "StudyMesh Defense Grind" public/reti/index.html
           test "$(grep -o 'class="task video-task"' public/reti/index.html | wc -l)" -eq 20
-          test "$(grep -o 'class="task botta-task"' public/reti/index.html | wc -l)" -eq 14
+          test "$(grep -o 'class="task botta-task' public/reti/index.html | wc -l)" -eq 14
+          test "$(grep -o 'class="task botta-task critical-botta"' public/reti/index.html | wc -l)" -eq 3
+          grep -q "Regola anti-arronzamento" public/reti/index.html
+          grep -q "FONDAMENTALE DIFESA" public/reti/index.html
+          grep -q "CORE DOCENTE" public/reti/index.html
           grep -q 'data-task-id="video-23"' public/reti/index.html
           grep -q 'data-task-id="video-24"' public/reti/index.html
           grep -q 'data-task-id="video-29"' public/reti/index.html
           grep -q 'data-task-id="video-31"' public/reti/index.html
+          grep -q 'data-task-id="botta-l12"' public/reti/index.html
           grep -q 'data-task-id="botta-l13"' public/reti/index.html
           grep -q 'data-task-id="botta-l17"' public/reti/index.html
           grep -q 'data-task-id="botta-l21"' public/reti/index.html
