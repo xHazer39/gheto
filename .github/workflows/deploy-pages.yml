@@ -37,7 +37,7 @@ jobs:
       - name: Generate Omniverse site and direct YouTube links
         run: bash ./build_site.sh "$GITHUB_WORKSPACE/public"
 
-      - name: Add Kurose networking study app
+      - name: Add StudyMesh Defense Grind
         run: |
           mkdir -p public/reti
           base64 --decode reti-kurose-grind.html.gz.b64 | gzip --decompress > public/reti/index.html
@@ -63,9 +63,11 @@ jobs:
           test -s public/index.html
           grep -q "The Legacy of the Omniverse" public/index.html
           test -s public/reti/index.html
-          grep -q "Kurose Grind" public/reti/index.html
-          test "$(grep -o 'class="task video-task"' public/reti/index.html | wc -l)" -eq 40
-          test "$(grep -o 'class="task reading-task"' public/reti/index.html | wc -l)" -eq 8
+          grep -q "StudyMesh Defense Grind" public/reti/index.html
+          test "$(grep -o 'class="task video-task"' public/reti/index.html | wc -l)" -eq 15
+          test "$(grep -o 'class="task optional-task"' public/reti/index.html | wc -l)" -eq 1
+          grep -q 'data-task-id="video-20"' public/reti/index.html
+          grep -q 'data-task-id="video-25"' public/reti/index.html
           test -s public/meal/index.html
           grep -q "Exact Engine 1.3 · standalone" public/meal/index.html
           grep -q "Piano giornaliero" public/meal/index.html
