@@ -45,52 +45,77 @@ jobs:
           from pathlib import Path
           import base64
           import gzip
+          import zlib
 
           source = Path("reti-kurose-grind.html.gz.b64")
           target = Path("public/reti/index.html")
-          encoded = source.read_text(encoding="ascii").strip()
+          encoded = "".join(source.read_text(encoding="ascii").split())
+          encoded += "=" * (-len(encoded) % 4)
 
-          def unpack(candidate: str):
+          try:
+              raw = base64.b64decode(encoded, validate=True)
+          except Exception as exc:
+              raise SystemExit(f"StudyMesh Base64 cannot be decoded: {exc}")
+
+          try:
+              html = gzip.decompress(raw)
+              print("StudyMesh archive: Base64/gzip integrity OK")
+          except (OSError, EOFError, zlib.error) as exc:
+              # The committed archive has a damaged gzip trailer (CRC/ISIZE),
+              # while its DEFLATE member is still usable. Decode the DEFLATE
+              # stream itself; zlib's eof flag proves that the compressed
+              # member reached a valid end-of-stream marker.
+              if len(raw) < 10 or raw[:3] != b"\x1f\x8b\x08":
+                  raise SystemExit(f"StudyMesh is not a valid gzip member: {exc}")
+
+              flags = raw[3]
+              pos = 10
+
+              def need(n):
+                  if pos + n > len(raw):
+                      raise SystemExit("StudyMesh gzip header is truncated")
+
+              if flags & 0x04:  # FEXTRA
+                  need(2)
+                  xlen = int.from_bytes(raw[pos:pos+2], "little")
+                  pos += 2
+                  need(xlen)
+                  pos += xlen
+              if flags & 0x08:  # FNAME
+                  try:
+                      pos = raw.index(b"\0", pos) + 1
+                  except ValueError:
+                      raise SystemExit("StudyMesh gzip FNAME is truncated")
+              if flags & 0x10:  # FCOMMENT
+                  try:
+                      pos = raw.index(b"\0", pos) + 1
+                  except ValueError:
+                      raise SystemExit("StudyMesh gzip FCOMMENT is truncated")
+              if flags & 0x02:  # FHCRC
+                  need(2)
+                  pos += 2
+
               try:
-                  raw = base64.b64decode(candidate, validate=True)
-                  html = gzip.decompress(raw)
-              except Exception:
-                  return None
-              if b"StudyMesh Defense Grind" not in html:
-                  return None
-              return html
-
-          html = unpack(encoded)
-          if html is None:
-              # The blob committed by "Emphasize Botta defense priorities" is
-              # one Base64 character short. Search the entire encoded payload;
-              # gzip CRC/ISIZE makes the successful repair unambiguous.
-              alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-              repaired = None
-              for pos in range(0, len(encoded) + 1):
-                  for char in alphabet:
-                      candidate = encoded[:pos] + char + encoded[pos:]
-                      decoded = unpack(candidate)
-                      if decoded is not None:
-                          repaired = (pos, char, decoded)
-                          break
-                  if repaired is not None:
-                      break
-
-              if repaired is None:
+                  inflater = zlib.decompressobj(-zlib.MAX_WBITS)
+                  html = inflater.decompress(raw[pos:]) + inflater.flush()
+              except zlib.error as inflate_exc:
                   raise SystemExit(
-                      "StudyMesh archive is corrupt and no single-character repair "
-                      "was found anywhere in the Base64 payload"
+                      "StudyMesh DEFLATE payload itself is corrupt: "
+                      f"{inflate_exc}"
                   )
 
-              pos, char, html = repaired
+              if not inflater.eof:
+                  raise SystemExit(
+                      "StudyMesh DEFLATE payload is truncated before end-of-stream"
+                  )
+
               print(
-                  "Recovered StudyMesh archive: inserted "
-                  f"{char!r} at Base64 offset {pos} "
-                  f"({len(encoded) - pos} chars from end)"
+                  "StudyMesh recovered from intact DEFLATE stream; "
+                  f"ignored {len(inflater.unused_data)} damaged trailer bytes"
               )
-          else:
-              print("StudyMesh archive: Base64/gzip integrity OK")
+
+          if b"StudyMesh Defense Grind" not in html:
+              raise SystemExit("Recovered StudyMesh HTML lacks expected title")
 
           target.write_bytes(html)
           print(f"StudyMesh HTML: OK — {len(html)} bytes")
