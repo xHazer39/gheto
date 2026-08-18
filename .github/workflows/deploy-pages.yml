@@ -63,12 +63,11 @@ jobs:
           html = unpack(encoded)
           if html is None:
               # The blob committed by "Emphasize Botta defense priorities" is
-              # one Base64 character short. The gzip payload itself tells us
-              # unambiguously which character is missing via its CRC/ISIZE.
-              alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
-              start = max(0, len(encoded) - 256)
+              # one Base64 character short. Search the entire encoded payload;
+              # gzip CRC/ISIZE makes the successful repair unambiguous.
+              alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
               repaired = None
-              for pos in range(start, len(encoded) + 1):
+              for pos in range(0, len(encoded) + 1):
                   for char in alphabet:
                       candidate = encoded[:pos] + char + encoded[pos:]
                       decoded = unpack(candidate)
@@ -81,7 +80,7 @@ jobs:
               if repaired is None:
                   raise SystemExit(
                       "StudyMesh archive is corrupt and no single-character repair "
-                      "was found in the final 256 Base64 characters"
+                      "was found anywhere in the Base64 payload"
                   )
 
               pos, char, html = repaired
